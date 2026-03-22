@@ -3,56 +3,278 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>GBC Emulator</title>
+  <title>Pokémon Coral Version</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"/>
   <style>
+    :root {
+      --red: #e63946;
+      --yellow: #f4d03f;
+      --blue: #457b9d;
+      --dark: #0a0a0f;
+      --panel: #12121a;
+      --border: #2a2a3a;
+      --text: #e0e0e0;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background: #111;
+      background: var(--dark);
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      font-family: sans-serif;
-      color: #eee;
+      font-family: 'Press Start 2P', monospace;
+      color: var(--text);
+      overflow: hidden;
     }
-    h1 { margin-bottom: 16px; font-size: 1.4rem; letter-spacing: 2px; color: #0f0; }
-    canvas {
-      border: 3px solid #0f0;
-      image-rendering: pixelated;
-      width: 320px;
-      height: 288px;
+
+    /* Animated pixel grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(69,123,157,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(69,123,157,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+      z-index: 0;
     }
-    .controls { margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-    button {
-      background: #222;
-      color: #0f0;
-      border: 1px solid #0f0;
-      padding: 8px 18px;
-      cursor: pointer;
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .title {
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      color: var(--yellow);
+      text-shadow: 0 0 12px rgba(244,208,63,0.6);
+      text-align: center;
+      line-height: 1.8;
+    }
+    .title span {
+      color: var(--red);
+      text-shadow: 0 0 12px rgba(230,57,70,0.7);
+    }
+
+    /* GBC shell */
+    .gbc-shell {
+      background: linear-gradient(160deg, #1e1e2e 0%, #14141f 100%);
+      border: 2px solid var(--border);
+      border-radius: 18px 18px 60px 60px;
+      padding: 20px 24px 40px;
+      box-shadow:
+        0 0 0 1px #0a0a14,
+        0 20px 60px rgba(0,0,0,0.8),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      width: 340px;
+    }
+
+    .screen-bezel {
+      background: #0a0a10;
+      border-radius: 8px;
+      padding: 12px;
+      border: 2px solid #1a1a28;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+      position: relative;
+    }
+
+    .screen-bezel::before {
+      content: '';
+      position: absolute;
+      top: 6px; left: 6px; right: 6px; bottom: 6px;
       border-radius: 4px;
-      font-size: 0.95rem;
+      background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 2;
     }
-    button:hover { background: #0f0; color: #111; }
-    #status { margin-top: 12px; font-size: 0.85rem; color: #aaa; }
+
+    canvas {
+      display: block;
+      width: 288px;
+      height: 256px;
+      image-rendering: pixelated;
+      border-radius: 3px;
+    }
+
+    .gbc-label {
+      font-size: 0.35rem;
+      letter-spacing: 2px;
+      color: #555;
+      text-transform: uppercase;
+    }
+
+    /* D-pad + buttons row */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0 8px;
+      margin-top: 4px;
+    }
+
+    .dpad {
+      display: grid;
+      grid-template-columns: 28px 28px 28px;
+      grid-template-rows: 28px 28px 28px;
+      gap: 2px;
+    }
+    .dpad button {
+      background: #222230;
+      border: 1px solid #333344;
+      border-radius: 3px;
+      color: #666;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dpad button:active, .dpad button.pressed { background: #444466; color: #aaa; }
+    .dpad .empty { background: transparent; border: none; pointer-events: none; }
+
+    .ab-buttons {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn-b, .btn-a {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      font-weight: bold;
+      transition: transform 0.08s, box-shadow 0.08s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-b {
+      background: radial-gradient(circle at 40% 35%, #c0392b, #7b1a14);
+      color: #ffaaaa;
+      box-shadow: 0 4px 0 #5a1010, 0 0 12px rgba(192,57,43,0.4);
+    }
+    .btn-a {
+      background: radial-gradient(circle at 40% 35%, #e74c3c, #c0392b);
+      color: #fff;
+      box-shadow: 0 4px 0 #7b1a14, 0 0 16px rgba(231,76,60,0.5);
+    }
+    .btn-b:active, .btn-a:active { transform: translateY(2px); box-shadow: 0 2px 0 #5a1010; }
+
+    .start-select {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+    }
+    .btn-small {
+      background: #1e1e2e;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #555;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.28rem;
+      padding: 5px 10px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background 0.1s, color 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-small:active { background: #333355; color: #aaa; }
+
+    #status {
+      font-size: 0.3rem;
+      color: #555;
+      letter-spacing: 1px;
+      text-align: center;
+      min-height: 14px;
+    }
+    #status.active { color: var(--yellow); text-shadow: 0 0 8px rgba(244,208,63,0.5); }
+    #status.error { color: var(--red); }
+
+    .power-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #1a3a1a;
+      box-shadow: none;
+      transition: all 0.3s;
+      margin-top: -6px;
+    }
+    .power-dot.on {
+      background: #2ecc71;
+      box-shadow: 0 0 8px #2ecc71;
+    }
   </style>
 </head>
 <body>
-  <h1>🎮 GBC Emulator</h1>
-  <canvas id="wasmboy-canvas" width="160" height="144"></canvas>
-  <div class="controls">
-    <input type="file" id="rom-input" accept=".gb,.gbc" style="display:none"/>
-    <button onclick="document.getElementById('rom-input').click()">Load ROM</button>
-    <button onclick="pauseResume()">Pause / Resume</button>
+<div class="wrapper">
+  <div class="title">
+    ★ <span>POKÉMON CORAL</span> ★<br>
+    <span style="color:#666;font-size:0.5em">2022 DEMO v1.2</span>
   </div>
-  <div id="status">Load a .gb or .gbc ROM to start.</div>
 
-  <script type="module">
-    import { WasmBoy } from 'https://unpkg.com/wasmboy@0.7.1/dist/wasmboy.esm.js';
+  <div class="gbc-shell">
+    <div class="power-dot" id="power-dot"></div>
+    <div class="screen-bezel">
+      <canvas id="wasmboy-canvas" width="160" height="144"></canvas>
+    </div>
+    <div class="gbc-label">Game Boy Color</div>
+    <div id="status">INITIALIZING...</div>
 
-    const canvas = document.getElementById('wasmboy-canvas');
-    const status = document.getElementById('status');
+    <div class="controls-row">
+      <!-- D-Pad -->
+      <div class="dpad">
+        <div class="empty"></div>
+        <button id="btn-up">▲</button>
+        <div class="empty"></div>
+        <button id="btn-left">◀</button>
+        <div class="empty" style="background:#222230;border-radius:3px;"></div>
+        <button id="btn-right">▶</button>
+        <div class="empty"></div>
+        <button id="btn-down">▼</button>
+        <div class="empty"></div>
+      </div>
 
+      <!-- A/B -->
+      <div class="ab-buttons">
+        <button class="btn-b" id="btn-b">B</button>
+        <button class="btn-a" id="btn-a">A</button>
+      </div>
+    </div>
+
+    <div class="start-select">
+      <button class="btn-small" id="btn-select">SELECT</button>
+      <button class="btn-small" id="btn-start">START</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { WasmBoy } from 'https://unpkg.com/wasmboy@0.7.1/dist/wasmboy.esm.js';
+
+  const canvas = document.getElementById('wasmboy-canvas');
+  const status = document.getElementById('status');
+  const powerDot = document.getElementById('power-dot');
+
+  function setStatus(msg, type = '') {
+    status.textContent = msg;
+    status.className = type;
+  }
+
+  try {
+    setStatus('LOADING WASMBOY...');
     await WasmBoy.config({
       headless: false,
       useGbcWhenOptional: true,
@@ -66,46 +288,62 @@
       tileRendering: true,
       tileCaching: true,
       gameboyFPSCap: 60,
-      updateGraphicsCallback: false,
-      updateAudioCallback: false,
-      saveStateCallback: false,
     }, canvas);
 
-    document.getElementById('rom-input').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      status.textContent = `Loading ${file.name}...`;
-      try {
-        await WasmBoy.loadROM(file);
-        await WasmBoy.play();
-        status.textContent = `▶ Playing: ${file.name}`;
-      } catch (err) {
-        status.textContent = `Error: ${err.message}`;
-        console.error(err);
-      }
-    });
+    setStatus('FETCHING ROM...');
+    const response = await fetch('Pokemon_Coral_Version__2022_Demo_v1_2_.gbc');
+    if (!response.ok) throw new Error(`ROM not found (${response.status})`);
+    const romBuffer = await response.arrayBuffer();
 
-    window.pauseResume = async () => {
-      if (WasmBoy.isPlaying()) {
-        await WasmBoy.pause();
-        status.textContent = '⏸ Paused';
-      } else {
-        await WasmBoy.play();
-        status.textContent = '▶ Resumed';
-      }
-    };
+    setStatus('LOADING ROM...');
+    await WasmBoy.loadROM(romBuffer);
 
-    // Keyboard controls (arrow keys + Z/X/Enter/Shift)
-    const keyMap = {
-      ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT',
-      z: 'A', x: 'B', Enter: 'START', Shift: 'SELECT'
-    };
-    document.addEventListener('keydown', e => {
-      if (keyMap[e.key]) WasmBoy.ResponsiveGamepad?.setJoystickInput?.(keyMap[e.key], true);
-    });
-    document.addEventListener('keyup', e => {
-      if (keyMap[e.key]) WasmBoy.ResponsiveGamepad?.setJoystickInput?.(keyMap[e.key], false);
-    });
-  </script>
+    await WasmBoy.play();
+    powerDot.classList.add('on');
+    setStatus('▶ PLAYING', 'active');
+  } catch (err) {
+    setStatus('ERROR: ' + err.message, 'error');
+    console.error(err);
+  }
+
+  // ── Keyboard controls ──
+  const keyMap = {
+    ArrowUp:    'UP',    ArrowDown:  'DOWN',
+    ArrowLeft:  'LEFT',  ArrowRight: 'RIGHT',
+    z: 'A', Z: 'A',
+    x: 'B', X: 'B',
+    Enter: 'START',
+    Shift: 'SELECT',
+    ShiftLeft: 'SELECT', ShiftRight: 'SELECT'
+  };
+
+  document.addEventListener('keydown', e => {
+    const btn = keyMap[e.key] || keyMap[e.code];
+    if (btn) { e.preventDefault(); WasmBoy.setJoypadState?.({ [btn]: true }); }
+  });
+  document.addEventListener('keyup', e => {
+    const btn = keyMap[e.key] || keyMap[e.code];
+    if (btn) WasmBoy.setJoypadState?.({ [btn]: false });
+  });
+
+  // ── On-screen button controls ──
+  const btnMap = {
+    'btn-up': 'UP', 'btn-down': 'DOWN',
+    'btn-left': 'LEFT', 'btn-right': 'RIGHT',
+    'btn-a': 'A', 'btn-b': 'B',
+    'btn-start': 'START', 'btn-select': 'SELECT'
+  };
+
+  for (const [id, key] of Object.entries(btnMap)) {
+    const el = document.getElementById(id);
+    const press   = () => WasmBoy.setJoypadState?.({ [key]: true });
+    const release = () => WasmBoy.setJoypadState?.({ [key]: false });
+    el.addEventListener('mousedown',  press);
+    el.addEventListener('mouseup',    release);
+    el.addEventListener('mouseleave', release);
+    el.addEventListener('touchstart', e => { e.preventDefault(); press(); },   { passive: false });
+    el.addEventListener('touchend',   e => { e.preventDefault(); release(); }, { passive: false });
+  }
+</script>
 </body>
 </html>
