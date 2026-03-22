@@ -291,7 +291,7 @@
     }, canvas);
 
     setStatus('FETCHING ROM...');
-    const response = await fetch('Pokemon_Coral_Version__2022_Demo_v1_2_.gbc');
+    const response = await fetch('Pokemon Coral Version (2022 Demo v1.2).gbc');
     if (!response.ok) throw new Error(`ROM not found (${response.status})`);
     const romBuffer = await response.arrayBuffer();
 
